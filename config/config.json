@@ -1,0 +1,26 @@
+{
+  "development": {
+    "username": "tanairvancova",
+    "password": null,
+    "database": "medication_control",
+    "host": "127.0.0.1",
+    "dialect": "postgres",
+    "port": 5432
+  },
+  "test": {
+    "username": "tanairvancova",
+    "password": null,
+    "database": "medication_control_test",
+    "host": "127.0.0.1",
+    "dialect": "postgres",
+    "port": 5432
+  },
+  "production": {
+    "username": "tanairvancova",
+    "password": null,
+    "database": "medication_control",
+    "host": "127.0.0.1",
+    "dialect": "postgres",
+    "port": 5432
+  }
+}
