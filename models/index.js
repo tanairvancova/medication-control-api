@@ -18,5 +18,6 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 db.Medication = require('./medication')(sequelize, DataTypes);
+db.User = require('./user')(sequelize, DataTypes);
 
 module.exports = db;
