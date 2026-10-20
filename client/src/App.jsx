@@ -35,15 +35,7 @@ const emptyForm = {
 }
 
 function App() {
-  const [medications, setMedications] = useState(() => {
-    try {
-      const saved = localStorage.getItem('medications')
-      return saved ? JSON.parse(saved) : initialMedications
-    } catch {
-      return initialMedications
-    }
-  })
-
+  const [medications, setMedications] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [filter, setFilter] = useState('all')
@@ -54,6 +46,17 @@ function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem('medications')
+        const parsed = saved ? JSON.parse(saved) : initialMedications
+
+        setMedications(
+          Array.isArray(parsed) ? parsed : initialMedications,
+        )
+      } catch {
+        setMedications(initialMedications)
+      }
+
       setLoading(false)
     }, 1000)
 
@@ -65,6 +68,8 @@ function App() {
   }, [medications.length])
 
   useEffect(() => {
+    if (loading) return
+
     const timer = setTimeout(() => {
       try {
         localStorage.setItem('medications', JSON.stringify(medications))
@@ -75,7 +80,7 @@ function App() {
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [medications])
+  }, [medications, loading])
 
   const filteredMedications = medications.filter((medication) => {
     const matchesSearch = medication.name
@@ -95,6 +100,7 @@ function App() {
 
   function handleChange(event) {
     const { name, value } = event.target
+
     setForm((previousForm) => ({
       ...previousForm,
       [name]: value,
@@ -207,7 +213,9 @@ function App() {
           <span className="stat-icon green">◷</span>
           <div>
             <p>Уникальных времён</p>
-            <strong>{new Set(medications.map((item) => item.time)).size}</strong>
+            <strong>
+              {new Set(medications.map((item) => item.time)).size}
+            </strong>
           </div>
         </article>
 
@@ -318,7 +326,11 @@ function App() {
             </div>
 
             <div className="form-actions">
-              <button type="button" className="secondary-button" onClick={resetForm}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={resetForm}
+              >
                 Отмена
               </button>
               <button type="submit" className="primary-button">
@@ -347,19 +359,29 @@ function App() {
 
           <div className="filter-buttons">
             <button
-              className={filter === 'all' ? 'filter-button active' : 'filter-button'}
+              className={
+                filter === 'all' ? 'filter-button active' : 'filter-button'
+              }
               onClick={() => setFilter('all')}
             >
               Все
             </button>
             <button
-              className={filter === 'morning' ? 'filter-button active' : 'filter-button'}
+              className={
+                filter === 'morning'
+                  ? 'filter-button active'
+                  : 'filter-button'
+              }
               onClick={() => setFilter('morning')}
             >
               До 12:00
             </button>
             <button
-              className={filter === 'evening' ? 'filter-button active' : 'filter-button'}
+              className={
+                filter === 'evening'
+                  ? 'filter-button active'
+                  : 'filter-button'
+              }
               onClick={() => setFilter('evening')}
             >
               С 12:00
