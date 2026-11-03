@@ -1,8 +1,21 @@
 const { Medication } = require("../models");
+const { Op } = require("sequelize");
 
 const getAllMedications = async (req, res) => {
     try {
-        const medications = await Medication.findAll();
+        const search = req.query.search || "";
+
+        const where = {};
+
+        if (search) {
+            where.name = {
+                [Op.iLike]: `%${search}%`
+            };
+        }
+
+        const medications = await Medication.findAll({
+            where
+        });
 
         res.json(medications);
     } catch (error) {

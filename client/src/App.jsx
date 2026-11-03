@@ -1,28 +1,11 @@
 import { useEffect, useState } from 'react'
+import {
+  fetchMedications,
+  addMedication,
+  updateMedication,
+  deleteMedication as deleteMedicationFromApi,
+} from './api'
 import './App.css'
-
-const initialMedications = [
-  {
-    id: 1,
-    name: 'Парацетамол',
-    dosage: '500 мг',
-    frequency: '1 раз в день',
-    time: '09:00',
-    startDate: '2026-10-20',
-    endDate: '2026-10-27',
-    description: 'После еды',
-  },
-  {
-    id: 2,
-    name: 'Ибупрофен',
-    dosage: '200 мг',
-    frequency: '1 раз в день',
-    time: '20:00',
-    startDate: '2026-10-20',
-    endDate: '2026-10-25',
-    description: 'После еды',
-  },
-]
 
 const emptyForm = {
   name: '',
@@ -40,62 +23,75 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [formError, setFormError] = useState('')
   const [lastSaved, setLastSaved] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
+  const [saving, setSaving] = useState(false)
 
+  // Задержка поиска: запрос отправляется через 500 мс после ввода
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [search])
+
+  // Загрузка списка с сервера с учётом поискового запроса
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadMedications() {
+      setLoading(true)
+      setError('')
+
       try {
-        const saved = localStorage.getItem('medications')
-        const parsed = saved ? JSON.parse(saved) : initialMedications
+        const response = await fetchMedications(debouncedSearch)
 
-        setMedications(
-          Array.isArray(parsed) ? parsed : initialMedications,
-        )
-      } catch {
-        setMedications(initialMedications)
+        if (isMounted) {
+          setMedications(response.data)
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(
+            error.response?.data?.message ||
+              'Не удалось загрузить лекарства. Проверьте соединение с сервером.',
+          )
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
       }
+    }
 
-      setLoading(false)
-    }, 1000)
+    loadMedications()
 
-    return () => clearTimeout(timer)
-  }, [])
+    return () => {
+      isMounted = false
+    }
+  }, [debouncedSearch, refreshKey])
 
   useEffect(() => {
     document.title = `Мои лекарства (${medications.length})`
   }, [medications.length])
 
-  useEffect(() => {
-    if (loading) return
-
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem('medications', JSON.stringify(medications))
-        setLastSaved(new Date().toLocaleTimeString())
-      } catch {
-        setLastSaved('Ошибка сохранения')
-      }
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [medications, loading])
-
+  // Локально оставляем только фильтрацию по времени
   const filteredMedications = medications.filter((medication) => {
-    const matchesSearch = medication.name
-      .toLowerCase()
-      .includes(search.toLowerCase())
-
     if (filter === 'morning') {
-      return matchesSearch && medication.time < '12:00'
+      return medication.time < '12:00'
     }
 
     if (filter === 'evening') {
-      return matchesSearch && medication.time >= '12:00'
+      return medication.time >= '12:00'
     }
 
-    return matchesSearch
+    return true
   })
 
   function handleChange(event) {
@@ -107,29 +103,125 @@ function App() {
     }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!form.name.trim() || !form.dosage.trim() || !form.time) {
+    if (saving) {
       return
     }
 
-    if (editingId !== null) {
-      setMedications((previous) =>
-        previous.map((medication) =>
-          medication.id === editingId
-            ? { ...form, id: editingId }
-            : medication,
-        ),
-      )
-    } else {
-      setMedications((previous) => [
-        ...previous,
-        { ...form, id: Date.now() },
-      ])
+    if (
+      !form.name.trim() ||
+      !form.dosage.trim() ||
+      !form.time ||
+      !form.startDate ||
+      !form.endDate
+    ) {
+      setFormError('Заполните все обязательные поля.')
+      return
     }
 
-    resetForm()
+    if (form.startDate > form.endDate) {
+      setFormError('Дата начала не может быть позже даты окончания.')
+      return
+    }
+
+    setFormError('')
+    setSaving(true)
+
+    try {
+      if (editingId !== null) {
+        const id = editingId
+        const previousMedications = medications
+
+        const updatedMedication = {
+          ...form,
+          id,
+        }
+
+        // Оптимистически обновляем список до ответа сервера
+        setMedications((previous) =>
+          previous.map((medication) =>
+            medication.id === id
+              ? updatedMedication
+              : medication,
+          ),
+        )
+
+        try {
+          const response = await updateMedication(id, form)
+
+          // Обновляем элемент ответом сервера
+          setMedications((previous) =>
+            previous.map((medication) =>
+              medication.id === id
+                ? response.data
+                : medication,
+            ),
+          )
+
+          setLastSaved(new Date().toLocaleTimeString())
+          resetForm()
+
+          // Повторно загружаем список с активным поиском
+          setRefreshKey((previous) => previous + 1)
+        } catch (error) {
+          // Откатываем изменения при ошибке
+          setMedications(previousMedications)
+
+          setFormError(
+            error.response?.data?.message ||
+              'Не удалось изменить лекарство. Изменения отменены.',
+          )
+        }
+      } else {
+        const temporaryId = Date.now()
+
+        const temporaryMedication = {
+          ...form,
+          id: temporaryId,
+        }
+
+        // Сразу добавляем лекарство с временным ID
+        setMedications((previous) => [
+          ...previous,
+          temporaryMedication,
+        ])
+
+        try {
+          const response = await addMedication(form)
+
+          // Заменяем временный элемент данными с сервера
+          setMedications((previous) =>
+            previous.map((medication) =>
+              medication.id === temporaryId
+                ? response.data
+                : medication,
+            ),
+          )
+
+          setLastSaved(new Date().toLocaleTimeString())
+          resetForm()
+
+          // Повторно загружаем список с активным поиском
+          setRefreshKey((previous) => previous + 1)
+        } catch (error) {
+          // Удаляем временный элемент при ошибке
+          setMedications((previous) =>
+            previous.filter(
+              (medication) => medication.id !== temporaryId,
+            ),
+          )
+
+          setFormError(
+            error.response?.data?.message ||
+              'Не удалось добавить лекарство. Попробуйте ещё раз.',
+          )
+        }
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   function startEditing(medication) {
@@ -140,22 +232,60 @@ function App() {
       time: medication.time,
       startDate: medication.startDate,
       endDate: medication.endDate,
-      description: medication.description,
+      description: medication.description || '',
     })
 
     setEditingId(medication.id)
+    setFormError('')
     setShowForm(true)
   }
 
-  function deleteMedication(id) {
+  async function deleteMedication(id) {
+    const confirmed = window.confirm(
+      'Вы действительно хотите удалить это лекарство?',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    const previousMedications = medications
+
+    setDeletingId(id)
+
+    // Оптимистически убираем лекарство из списка
     setMedications((previous) =>
       previous.filter((medication) => medication.id !== id),
     )
+
+    try {
+      await deleteMedicationFromApi(id)
+
+      setLastSaved(new Date().toLocaleTimeString())
+
+      if (editingId === id) {
+        resetForm()
+      }
+
+      // Повторно загружаем список с активным поиском
+      setRefreshKey((previous) => previous + 1)
+    } catch (error) {
+      // Восстанавливаем список при ошибке
+      setMedications(previousMedications)
+
+      window.alert(
+        error.response?.data?.message ||
+          'Не удалось удалить лекарство. Список восстановлен.',
+      )
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   function resetForm() {
     setForm(emptyForm)
     setEditingId(null)
+    setFormError('')
     setShowForm(false)
   }
 
@@ -164,6 +294,20 @@ function App() {
       <main className="loading-screen">
         <div className="loader" />
         <p>Загружаем расписание лекарств...</p>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="loading-screen">
+        <p>{error}</p>
+        <button
+          className="primary-button"
+          onClick={() => setRefreshKey((previous) => previous + 1)}
+        >
+          Повторить
+        </button>
       </main>
     )
   }
@@ -184,6 +328,7 @@ function App() {
           onClick={() => {
             setForm(emptyForm)
             setEditingId(null)
+            setFormError('')
             setShowForm(true)
           }}
         >
@@ -239,10 +384,18 @@ function App() {
               </h2>
               <p>Заполните информацию о препарате</p>
             </div>
-            <button className="close-button" onClick={resetForm}>
+            <button
+              className="close-button"
+              onClick={resetForm}
+              disabled={saving}
+            >
               ✕
             </button>
           </div>
+
+          {formError && (
+            <p className="error-message">{formError}</p>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
@@ -254,6 +407,7 @@ function App() {
                   onChange={handleChange}
                   placeholder="Например, Парацетамол"
                   required
+                  disabled={saving}
                 />
               </label>
 
@@ -265,6 +419,7 @@ function App() {
                   onChange={handleChange}
                   placeholder="Например, 500 мг"
                   required
+                  disabled={saving}
                 />
               </label>
 
@@ -274,6 +429,7 @@ function App() {
                   name="frequency"
                   value={form.frequency}
                   onChange={handleChange}
+                  disabled={saving}
                 >
                   <option>1 раз в день</option>
                   <option>2 раза в день</option>
@@ -290,26 +446,31 @@ function App() {
                   value={form.time}
                   onChange={handleChange}
                   required
+                  disabled={saving}
                 />
               </label>
 
               <label>
-                Дата начала
+                Дата начала *
                 <input
                   type="date"
                   name="startDate"
                   value={form.startDate}
                   onChange={handleChange}
+                  required
+                  disabled={saving}
                 />
               </label>
 
               <label>
-                Дата окончания
+                Дата окончания *
                 <input
                   type="date"
                   name="endDate"
                   value={form.endDate}
                   onChange={handleChange}
+                  required
+                  disabled={saving}
                 />
               </label>
 
@@ -321,6 +482,7 @@ function App() {
                   onChange={handleChange}
                   placeholder="Например, после еды"
                   rows="2"
+                  disabled={saving}
                 />
               </label>
             </div>
@@ -330,11 +492,21 @@ function App() {
                 type="button"
                 className="secondary-button"
                 onClick={resetForm}
+                disabled={saving}
               >
                 Отмена
               </button>
-              <button type="submit" className="primary-button">
-                {editingId !== null ? 'Сохранить изменения' : 'Добавить'}
+
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving}
+              >
+                {saving
+                  ? 'Сохранение...'
+                  : editingId !== null
+                    ? 'Сохранить изменения'
+                    : 'Добавить'}
               </button>
             </div>
           </form>
@@ -406,7 +578,9 @@ function App() {
                   <p className="dosage">{medication.dosage}</p>
                   <p>{medication.frequency}</p>
                   {medication.description && (
-                    <p className="description">{medication.description}</p>
+                    <p className="description">
+                      {medication.description}
+                    </p>
                   )}
                   {(medication.startDate || medication.endDate) && (
                     <p className="dates">
@@ -434,10 +608,11 @@ function App() {
                   <button
                     className="icon-button delete"
                     onClick={() => deleteMedication(medication.id)}
+                    disabled={deletingId === medication.id}
                     aria-label={`Удалить ${medication.name}`}
                     title="Удалить"
                   >
-                    🗑
+                    {deletingId === medication.id ? '…' : '🗑'}
                   </button>
                 </div>
               </article>
@@ -450,7 +625,7 @@ function App() {
         <span>Приложение для контроля приёма лекарств</span>
         <span>
           {lastSaved
-            ? `Автосохранение: ${lastSaved}`
+            ? `Последнее сохранение: ${lastSaved}`
             : 'Ожидание изменений'}
         </span>
       </footer>
