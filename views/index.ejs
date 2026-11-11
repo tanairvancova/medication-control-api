@@ -1,0 +1,25 @@
+<%- include("partials/header") %>
+
+<h1>Контроль приёма лекарств</h1>
+
+<p>Пользователь: <%= user.name %></p>
+
+<a href="/add?auth=1">Добавить лекарство</a>
+
+<hr>
+
+<% if (items.length === 0) { %>
+    <p>Список лекарств пуст.</p>
+<% } else { %>
+    <% items.forEach(item => { %>
+        <div>
+            <h2><%= item.name %></h2>
+            <p>Доза: <%= item.dose %></p>
+            <p>Время приёма: <%= item.time %></p>
+            <a href="/item/<%= item.id %>?auth=1">Подробнее</a>
+        </div>
+        <hr>
+    <% }); %>
+<% } %>
+
+<%- include("partials/footer") %>

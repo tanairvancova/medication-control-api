@@ -1,0 +1,36 @@
+<%- include("partials/header") %>
+
+<h1>Добавить лекарство</h1>
+
+<p>Пользователь: <%= user.name %></p>
+
+<form action="/add?auth=1" method="POST">
+    <p>
+        <label>
+            Название:
+            <input type="text" name="name" required>
+        </label>
+    </p>
+
+    <p>
+        <label>
+            Доза:
+            <input type="text" name="dose" required>
+        </label>
+    </p>
+
+    <p>
+        <label>
+            Время:
+            <input type="time" name="time" required>
+        </label>
+    </p>
+
+    <button type="submit">Добавить</button>
+</form>
+
+<br>
+
+<a href="/?auth=1">Вернуться к списку</a>
+
+<%- include("partials/footer") %>

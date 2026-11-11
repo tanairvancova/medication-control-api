@@ -1,0 +1,11 @@
+<%- include("partials/header") %>
+
+<h1><%= item.name %></h1>
+
+<p>Доза: <%= item.dose %></p>
+<p>Время приёма: <%= item.time %></p>
+<p>Пользователь: <%= user.name %></p>
+
+<a href="/?auth=1">Вернуться к списку</a>
+
+<%- include("partials/footer") %>
