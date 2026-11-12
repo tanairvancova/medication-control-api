@@ -5,16 +5,18 @@ const cors = require("cors");
 
 const app = express();
 
+const connectMongoDB = require("./config/mongo");
+const db = require("./models");
+
 app.use(cors());
 app.use(express.json());
 
 const PORT = 3000;
 
 const medicationRoutes = require("./routes/medicationRoutes");
+const mongoMedicationRoutes = require("./routes/mongoMedicationRoutes");
 const authRoutes = require("./routes/auth");
 const authMiddleware = require("./middleware/auth");
-
-app.use(express.json());
 
 app.get("/", (req, res) => {
     res.json({
@@ -24,9 +26,10 @@ app.get("/", (req, res) => {
 
 app.use("/medications", medicationRoutes);
 
+app.use("/mongo/medications", mongoMedicationRoutes);
+
 app.use("/auth", authRoutes);
 
-// Защищённый маршрут профиля
 app.get("/profile", authMiddleware, (req, res) => {
     res.json({
         message: "Доступ к профилю разрешён",
@@ -42,6 +45,20 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+const startServer = async () => {
+    try {
+        await db.sequelize.authenticate();
+        console.log("PostgreSQL connected");
+
+        await connectMongoDB();
+
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error("Database connection error:", error.message);
+        process.exit(1);
+    }
+};
+
+startServer();
