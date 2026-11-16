@@ -73,6 +73,18 @@ const createMedication = async (req, res) => {
             description
         });
 
+        const io = req.app.get("io");
+
+        if (io) {
+            io.to("medication-updates").emit("medication changed", {
+                action: "created",
+                medication: {
+                    id: medication.id,
+                    name: medication.name
+                }
+            });
+        }
+
         res.status(201).json(medication);
     } catch (error) {
         res.status(500).json({
@@ -119,6 +131,18 @@ const updateMedication = async (req, res) => {
             description
         });
 
+        const io = req.app.get("io");
+
+        if (io) {
+            io.to("medication-updates").emit("medication changed", {
+                action: "updated",
+                medication: {
+                    id: medication.id,
+                    name: medication.name
+                }
+            });
+        }
+
         res.json(medication);
     } catch (error) {
         res.status(500).json({
@@ -140,6 +164,18 @@ const deleteMedication = async (req, res) => {
         }
 
         await medication.destroy();
+
+        const io = req.app.get("io");
+
+        if (io) {
+            io.to("medication-updates").emit("medication changed", {
+                action: "deleted",
+                medication: {
+                    id: medication.id,
+                    name: medication.name
+                }
+            });
+        }
 
         res.json({
             message: "Medication deleted successfully",

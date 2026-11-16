@@ -5,6 +5,7 @@ import {
   updateMedication,
   deleteMedication as deleteMedicationFromApi,
 } from './api'
+import { socket } from './socket'
 import './App.css'
 
 const emptyForm = {
@@ -32,6 +33,21 @@ function App() {
   const [lastSaved, setLastSaved] = useState('')
   const [deletingId, setDeletingId] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  // Подключение Socket.IO и получение уведомлений об изменениях
+  useEffect(() => {
+    function handleMedicationChanged() {
+      setRefreshKey((previous) => previous + 1)
+    }
+
+    socket.on('medication changed', handleMedicationChanged)
+    socket.connect()
+
+    return () => {
+      socket.off('medication changed', handleMedicationChanged)
+      socket.disconnect()
+    }
+  }, [])
 
   // Задержка поиска: запрос отправляется через 500 мс после ввода
   useEffect(() => {
