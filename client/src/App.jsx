@@ -33,11 +33,27 @@ function App() {
   const [lastSaved, setLastSaved] = useState('')
   const [deletingId, setDeletingId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [notification, setNotification] = useState('')
 
-  // Подключение Socket.IO и получение уведомлений об изменениях
+
   useEffect(() => {
-    function handleMedicationChanged() {
+    function handleMedicationChanged(data) {
       setRefreshKey((previous) => previous + 1)
+
+      const messages = {
+        created: 'добавлено',
+        updated: 'обновлено',
+        deleted: 'удалено',
+      }
+
+      const action = messages[data?.action]
+      const medicationName = data?.medication?.name
+
+      if (action && medicationName) {
+        setNotification(`Лекарство «${medicationName}» ${action}`)
+      } else {
+        setNotification('Список лекарств обновлён')
+      }
     }
 
     socket.on('medication changed', handleMedicationChanged)
@@ -49,7 +65,20 @@ function App() {
     }
   }, [])
 
-  // Задержка поиска: запрос отправляется через 500 мс после ввода
+
+  useEffect(() => {
+    if (!notification) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      setNotification('')
+    }, 3000)
+
+    return () => clearTimeout(timeoutId)
+  }, [notification])
+
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(search.trim())
@@ -58,7 +87,7 @@ function App() {
     return () => clearTimeout(timeoutId)
   }, [search])
 
-  // Загрузка списка с сервера с учётом поискового запроса
+  
   useEffect(() => {
     let isMounted = true
 
@@ -330,6 +359,13 @@ function App() {
 
   return (
     <main className="app">
+      {notification && (
+        <div className="toast-notification" role="status">
+          <span className="toast-icon">✓</span>
+          <span>{notification}</span>
+        </div>
+      )}
+
       <header className="header">
         <div className="brand">
           <div className="brand-icon">✚</div>

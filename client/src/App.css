@@ -425,6 +425,51 @@ textarea:focus {
   }
 }
 
+/* Визуальные уведомления Socket.IO */
+.toast-notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 260px;
+  padding: 16px 20px;
+  border: 1px solid #ccebdc;
+  border-radius: 12px;
+  background: #f0fff7;
+  color: #18794e;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 25px #25283b18;
+  animation: toast-appear 0.25s ease-out;
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #d5f5e5;
+  color: #18794e;
+  font-size: 17px;
+}
+
+@keyframes toast-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 760px) {
   .app {
     padding: 22px 16px;
@@ -475,5 +520,14 @@ textarea:focus {
 
   .form-grid .full-width {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  .toast-notification {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    min-width: auto;
   }
 }
