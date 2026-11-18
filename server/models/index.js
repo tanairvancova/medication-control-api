@@ -1,14 +1,17 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const config = require('../config/config.json');
 
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env];
+
 const sequelize = new Sequelize(
-    config.development.database,
-    config.development.username,
-    config.development.password,
+    process.env.DB_NAME || dbConfig.database,
+    process.env.DB_USER || dbConfig.username,
+    process.env.DB_PASSWORD || dbConfig.password,
     {
-        host: config.development.host,
-        dialect: config.development.dialect,
-        port: config.development.port
+        host: process.env.DB_HOST || dbConfig.host,
+        dialect: dbConfig.dialect,
+        port: process.env.DB_PORT || dbConfig.port
     }
 );
 

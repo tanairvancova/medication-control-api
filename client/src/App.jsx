@@ -184,7 +184,6 @@ function App() {
           id,
         }
 
-        // Оптимистически обновляем список до ответа сервера
         setMedications((previous) =>
           previous.map((medication) =>
             medication.id === id
@@ -196,7 +195,6 @@ function App() {
         try {
           const response = await updateMedication(id, form)
 
-          // Обновляем элемент ответом сервера
           setMedications((previous) =>
             previous.map((medication) =>
               medication.id === id
@@ -208,10 +206,8 @@ function App() {
           setLastSaved(new Date().toLocaleTimeString())
           resetForm()
 
-          // Повторно загружаем список с активным поиском
           setRefreshKey((previous) => previous + 1)
         } catch (error) {
-          // Откатываем изменения при ошибке
           setMedications(previousMedications)
 
           setFormError(
@@ -227,7 +223,6 @@ function App() {
           id: temporaryId,
         }
 
-        // Сразу добавляем лекарство с временным ID
         setMedications((previous) => [
           ...previous,
           temporaryMedication,
@@ -236,7 +231,6 @@ function App() {
         try {
           const response = await addMedication(form)
 
-          // Заменяем временный элемент данными с сервера
           setMedications((previous) =>
             previous.map((medication) =>
               medication.id === temporaryId
@@ -248,10 +242,8 @@ function App() {
           setLastSaved(new Date().toLocaleTimeString())
           resetForm()
 
-          // Повторно загружаем список с активным поиском
           setRefreshKey((previous) => previous + 1)
         } catch (error) {
-          // Удаляем временный элемент при ошибке
           setMedications((previous) =>
             previous.filter(
               (medication) => medication.id !== temporaryId,
@@ -298,7 +290,6 @@ function App() {
 
     setDeletingId(id)
 
-    // Оптимистически убираем лекарство из списка
     setMedications((previous) =>
       previous.filter((medication) => medication.id !== id),
     )
@@ -312,10 +303,8 @@ function App() {
         resetForm()
       }
 
-      // Повторно загружаем список с активным поиском
       setRefreshKey((previous) => previous + 1)
     } catch (error) {
-      // Восстанавливаем список при ошибке
       setMedications(previousMedications)
 
       window.alert(
